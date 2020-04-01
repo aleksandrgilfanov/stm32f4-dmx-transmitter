@@ -23,6 +23,7 @@
 #include "stm32f4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "dmx_transmitter.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -201,10 +202,6 @@ void SysTick_Handler(void)
 /**
   * @brief This function handles TIM2 global interrupt.
   */
-extern uint16_t slots_sent;
-extern uint16_t slots_count;
-extern uint8_t packet[];
-
 void TIM2_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM2_IRQn 0 */
@@ -212,15 +209,8 @@ void TIM2_IRQHandler(void)
   /* USER CODE END TIM2_IRQn 0 */
   HAL_TIM_IRQHandler(&htim2);
   /* USER CODE BEGIN TIM2_IRQn 1 */
-  if (slots_sent < slots_count) {
-    USART2->DR = packet[slots_sent++];
-  }
-  else
-  {
-    TIM2->CR1 &= ~(TIM_CR1_CEN);
-    TIM2->CNT = 0;
-  }
-  /* USER CODE END TIM2_IRQn 1 */
+  dmx_slot();
+ /* USER CODE END TIM2_IRQn 1 */
 }
 
 /**
@@ -229,32 +219,12 @@ void TIM2_IRQHandler(void)
 void TIM3_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM3_IRQn 0 */
-  if (TIM3->SR & TIM_IT_UPDATE)
-  {
-    /* Reset sequence finished, stop timer */
-    TIM3->CR1 &= ~(TIM_CR1_CEN);
-    TIM3->CNT = 0;
-
-    /* Send start code 0x00 */
-    USART2->DR = 0x00;
-
-    /* Start timer for slots */
-    __HAL_TIM_ENABLE(&htim2);
-  }
-  else if (TIM3->SR & TIM_IT_CC1)
-  {
-    /* Use floating pin mode for mark after break */
-    GPIO_InitTypeDef GPIO_InitStruct = {0};
-    GPIO_InitStruct.Pin = GPIO_PIN_8;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
-    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-  }
-
-   __HAL_TIM_CLEAR_IT(&htim3, TIM_IT_UPDATE);
-   __HAL_TIM_CLEAR_IT(&htim3, TIM_IT_CC1);
+  dmx_reset_sequence();
   /* USER CODE END TIM3_IRQn 0 */
-  /* USER CODE BEGIN TIM3_IRQn 1 */
 
+  /* USER CODE BEGIN TIM3_IRQn 1 */
+  __HAL_TIM_CLEAR_IT(&htim3, TIM_IT_UPDATE);
+  __HAL_TIM_CLEAR_IT(&htim3, TIM_IT_CC1);
   /* USER CODE END TIM3_IRQn 1 */
 }
 

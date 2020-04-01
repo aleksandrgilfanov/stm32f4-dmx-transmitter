@@ -23,7 +23,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "dmx_transmitter.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -33,6 +33,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+/* For timer with clock 45MHz and prescaler 0*/
+#define USEC_COUNT (95/2)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -48,9 +50,6 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 
-uint16_t slots_sent;
-uint16_t slots_count;
-uint8_t packet[512];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -65,18 +64,6 @@ static void MX_TIM2_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-static void dmx_send(int value)
-{
-	//set pin low
-	GPIO_InitTypeDef GPIO_InitStruct = {0};
-	GPIO_InitStruct.Pin = GPIO_PIN_8;
-	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-	HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET);
-	//start timer
-	__HAL_TIM_ENABLE(&htim3);
-}
 
 /* USER CODE END 0 */
 
@@ -123,17 +110,10 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-	slots_count = 2;
-	slots_sent = 0;
-        packet[0] = 0xFF;
-	packet[1] = 0x55;
+    uint8_t test_packet[] = {0xFF, 0x55, 0x00};
+    dmx_send(test_packet, sizeof(test_packet));
 
-	dmx_send(0);
-
-	/* wait until transmission is finished */
-	while (slots_sent < slots_count) {};
-
-	HAL_Delay(1000);
+    HAL_Delay(1000);
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -203,7 +183,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 0;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 5130;
+  htim2.Init.Period = (DMX_SLOT + DMX_MBS) * USEC_COUNT;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -256,7 +236,7 @@ static void MX_TIM3_Init(void)
   htim3.Instance = TIM3;
   htim3.Init.Prescaler = 0;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 4560;
+  htim3.Init.Period = (DMX_BREAK + DMX_MAB) * USEC_COUNT;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -280,7 +260,7 @@ static void MX_TIM3_Init(void)
     Error_Handler();
   }
   sConfigOC.OCMode = TIM_OCMODE_TIMING;
-  sConfigOC.Pulse = 4180;
+  sConfigOC.Pulse = DMX_BREAK * USEC_COUNT;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_ENABLE;
   if (HAL_TIM_OC_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
