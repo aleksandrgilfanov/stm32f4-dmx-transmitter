@@ -48,6 +48,9 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 
+uint16_t slots_sent;
+uint16_t slots_count;
+uint8_t packet[512];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -70,7 +73,7 @@ static void dmx_send(int value)
 	GPIO_InitStruct.Pin = GPIO_PIN_8;
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
 	HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, value);
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET);
 	//start timer
 	__HAL_TIM_ENABLE(&htim3);
 }
@@ -120,15 +123,15 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
+	slots_count = 2;
+	slots_sent = 0;
+        packet[0] = 0xFF;
+	packet[1] = 0x55;
+
 	dmx_send(0);
 
-	/* wait until this register cleared in timer interrupt */
-	while ((htim3.Instance->CR1 & TIM_CR1_CEN) != 0) {};
-
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, 1);
-
-	uint8_t dmx_test[] = {0x00, 0xFF, 0x55, 0x01};
-	HAL_UART_Transmit(&huart2, dmx_test, sizeof(dmx_test), 100);
+	/* wait until transmission is finished */
+	while (slots_sent < slots_count) {};
 
 	HAL_Delay(1000);
     /* USER CODE BEGIN 3 */
@@ -219,7 +222,14 @@ static void MX_TIM2_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN TIM2_Init 2 */
-
+  /*
+   * Update flag should be cleaned, to prevent unwanted interrupt. Inerrupt
+   * flag is generated earlier, by following call:
+   * HAL_TIM_Base_Init -> TIM_Base_SetConfig -> TIMx->EGR = TIM_EGR_UG
+   */
+  __HAL_TIM_CLEAR_IT(&htim2, TIM_FLAG_UPDATE);
+  /* Enable interrupts, but don't enable timer counter, to prevent interrupts */
+  __HAL_TIM_ENABLE_IT(&htim2, TIM_IT_UPDATE);
   /* USER CODE END TIM2_Init 2 */
 
 }
