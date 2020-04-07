@@ -101,6 +101,10 @@ int main(void)
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
+  uint8_t test_packet[512];
+  for (int i=0; i<sizeof(test_packet); i++)
+	test_packet[i] = i & 0xFF;
+
   /* USER CODE END 2 */
  
  
@@ -110,7 +114,6 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-    uint8_t test_packet[] = {0xFF, 0x55, 0x00};
     dmx_send(test_packet, sizeof(test_packet));
 
     HAL_Delay(1000);
